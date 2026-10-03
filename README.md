@@ -19,6 +19,28 @@ Pair-wise GSB 标注任务仓库（第 16 批 / 259）。
 ./mvnw -q verify
 ```
 
+## 实现说明
+
+组件位于 `com.example.gsb.indexmerge` 包：
+
+- `DocIdIterator`：统一候选遍历接口（`next()` / `advance(target)`，文档号升序）。
+- `CandidateSource`：一个索引条件命中的候选集（名称、候选数、遍历器）。
+- `IndexMergeScanner`：合并扫描器。
+  - 并集（`UNION`）：最小堆 k 路归并，流式产出，跳过重复文档号。
+  - 交集（`INTERSECTION`）：按当前剩余长度从小到大两两归并，中间结果大小始终被最小候选集约束。
+  - 二次过滤：合并结果再经非索引条件 `IntPredicate` 过滤，统计过滤前后条数。
+- `MergeStats`：各索引候选数、合并轮次、中间结果峰值、二次过滤丢弃数。
+
+索引来源（`com.example.gsb.indexmerge.index` 包）：
+
+- `HashEqualityIndex`：哈希等值索引（key -> 有序倒排链）。
+- `SortedRangeIndex`：排序范围索引（按值有序，闭区间扫描）。
+- `BitmapIndex`：位图索引（`BitSet` 命中文档集合）。
+
+测试：`IndexMergeScannerTest`（并/交集、有序去重、长度优先、二次过滤、统计）、
+`MixedIndexSourcesTest`（三种索引混用）、`RandomizedCorrectnessTest`
+（随机数据下与"取全集再集合合并"的暴力结果对比）。
+
 ## 任务提示词
 
 以下为本题完整的 User Prompt 原文，两次执行必须使用完全相同的文本。
